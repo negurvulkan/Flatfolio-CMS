@@ -30,11 +30,31 @@ spl_autoload_register(function (string $class) use ($prefixes): void {
     }
 });
 
+function loadConfigTheme(string $configPath): ?string
+{
+    if (!is_file($configPath)) {
+        return null;
+    }
+
+    $raw = file_get_contents($configPath);
+    if ($raw === false) {
+        return null;
+    }
+
+    if (preg_match('/^theme:\s*["\']?(?P<theme>[A-Za-z0-9_-]+)/mi', $raw, $matches)) {
+        return $matches['theme'] !== '' ? $matches['theme'] : null;
+    }
+
+    return null;
+}
+
+$configTheme = loadConfigTheme($basePath . '/config/config.yml');
+
 $frontmatterParser = new FrontmatterParser();
 $markdownRenderer = new MarkdownRenderer();
 
 $router = new Router(new ContentRepository($basePath . '/content', $frontmatterParser, $markdownRenderer));
-$templateEngine = new TemplateEngine($basePath . '/templates');
+$templateEngine = new TemplateEngine($basePath . '/templates', $configTheme, $basePath . '/themes');
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $route = $router->match($path);
