@@ -111,7 +111,8 @@ $sectionClass = function(string $id) use ($activeSection): string {
         <?php include __DIR__ . '/projects/index.php'; ?>
     <?php endif; ?>
 </div>
-
+<div class="sections-grid">
 <?php if (!empty($skills)): ?>
     <?php include __DIR__ . '/skills.php'; ?>
 <?php endif; ?>
+</div>
