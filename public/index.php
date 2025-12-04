@@ -39,8 +39,6 @@ $templateEngine = new TemplateEngine($basePath . '/templates');
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $route = $router->match($path);
 
-if (($route['template'] ?? '') === '404') {
-    http_response_code(404);
-}
+http_response_code($route->getStatusCode());
 
-echo $templateEngine->render($route['template'], $route['data'] ?? []);
+echo $templateEngine->render($route->getTemplate(), $route->getData());

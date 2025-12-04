@@ -15,37 +15,134 @@ class Router
 
     /**
      * Match a request path to a template and data payload.
-     * Returns an associative array with keys `template` and `data`.
+     * Returns a RouteResult with template, data and status code.
      */
-    public function match(string $path): array
+    public function match(string $path): RouteResult
     {
-        $trimmedPath = trim($path, '/');
+        $normalizedPath = $this->normalizePath($path);
+        $segments = $normalizedPath === '/' ? [] : explode('/', trim($normalizedPath, '/'));
 
-        if ($trimmedPath === '') {
-            return [
-                'template' => 'home',
-                'data' => $this->contentRepository->loadHomePage(),
-            ];
+        if ($segments === []) {
+            return $this->resolveHome();
         }
 
-        if ($trimmedPath === 'projects') {
-            return [
-                'template' => 'projects',
-                'data' => $this->contentRepository->loadProjects(),
-            ];
+        $first = $segments[0];
+        if ($first === 'projects') {
+            return $this->resolveProjects($segments, $normalizedPath);
         }
 
-        $page = $this->contentRepository->findPageBySlug($trimmedPath);
-        if ($page !== null) {
-            return [
-                'template' => 'page',
-                'data' => $page,
-            ];
+        if ($first === 'timeline') {
+            return $this->resolveTimeline($segments, $normalizedPath);
         }
 
-        return [
-            'template' => '404',
-            'data' => ['title' => 'Seite nicht gefunden', 'content' => "Die angeforderte Seite wurde nicht gefunden."],
-        ];
+        if ($first === 'skills') {
+            return $this->resolveSkills($segments, $normalizedPath);
+        }
+
+        if ($first === 'blog' || $first === 'posts') {
+            return $this->resolvePosts($segments, $normalizedPath);
+        }
+
+        if (count($segments) === 1 && !$this->isReservedSlug($first)) {
+            return $this->resolvePage($first, 'page');
+        }
+
+        return $this->notFound($normalizedPath);
+    }
+
+    private function normalizePath(string $path): string
+    {
+        $pathOnly = parse_url($path, PHP_URL_PATH) ?? '/';
+        $pathOnly = $pathOnly === '' ? '/' : $pathOnly;
+
+        $trimmed = rtrim($pathOnly, '/');
+        if ($trimmed === '') {
+            return '/';
+        }
+
+        return $trimmed;
+    }
+
+    private function resolveHome(): RouteResult
+    {
+        return $this->resolvePage('home', 'home');
+    }
+
+    private function resolveProjects(array $segments, string $path): RouteResult
+    {
+        if (count($segments) === 1) {
+            $projects = $this->contentRepository->loadProjects();
+            return new RouteResult('projects', ['projects' => $projects]);
+        }
+
+        if (count($segments) === 2) {
+            $project = $this->contentRepository->loadProject($segments[1]);
+            if ($project !== null) {
+                $template = $project->getTemplate() ?? 'project-single';
+                return new RouteResult($template, ['project' => $project]);
+            }
+        }
+
+        return $this->notFound($path);
+    }
+
+    private function resolveTimeline(array $segments, string $path): RouteResult
+    {
+        if (count($segments) === 1) {
+            $entries = $this->contentRepository->loadTimelineEntries();
+            return new RouteResult('timeline', ['entries' => $entries]);
+        }
+
+        return $this->notFound($path);
+    }
+
+    private function resolveSkills(array $segments, string $path): RouteResult
+    {
+        if (count($segments) === 1) {
+            $skills = $this->contentRepository->loadSkills();
+            return new RouteResult('skills', ['skills' => $skills]);
+        }
+
+        return $this->notFound($path);
+    }
+
+    private function resolvePosts(array $segments, string $path): RouteResult
+    {
+        if (count($segments) === 1) {
+            $posts = $this->contentRepository->loadPosts();
+            return new RouteResult('posts', ['posts' => $posts]);
+        }
+
+        if (count($segments) === 2) {
+            $post = $this->contentRepository->loadPost($segments[1]);
+            if ($post !== null) {
+                $template = $post->getTemplate() ?? 'post';
+                return new RouteResult($template, ['post' => $post]);
+            }
+        }
+
+        return $this->notFound($path);
+    }
+
+    private function resolvePage(string $slug, string $defaultTemplate): RouteResult
+    {
+        $page = $this->contentRepository->loadPage($slug);
+        if ($page === null) {
+            return $this->notFound($slug === 'home' ? '/' : '/' . $slug);
+        }
+
+        $template = $page->getTemplate() ?? $defaultTemplate;
+
+        return new RouteResult($template, ['page' => $page]);
+    }
+
+    private function notFound(string $path): RouteResult
+    {
+        return new RouteResult('404', ['path' => $path], 404);
+    }
+
+    private function isReservedSlug(string $slug): bool
+    {
+        return in_array($slug, ['projects', 'timeline', 'skills', 'blog', 'posts'], true);
     }
 }
