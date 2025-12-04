@@ -8,6 +8,7 @@ use Flatfolio\Content\FrontmatterParser;
 use Flatfolio\Content\MarkdownDocument;
 use Flatfolio\Content\MarkdownRenderer;
 use RuntimeException;
+use Symfony\Component\Yaml\Yaml;
 
 class ContentRepository
 {
@@ -46,19 +47,8 @@ class ContentRepository
     public function loadPage(string $slug): ?MarkdownDocument
     {
         $pageFile = $this->contentPath . '/pages/' . $slug . '.md';
-        if (!is_file($pageFile)) {
-            return null;
-        }
 
-        $content = file_get_contents($pageFile);
-        if ($content === false) {
-            throw new RuntimeException(sprintf('Konnte die Seite %s nicht lesen.', $pageFile));
-        }
-
-        $parsed = $this->frontmatterParser->parse($content);
-        $bodyHtml = $this->markdownRenderer->toHtml($parsed['body']);
-
-        return new MarkdownDocument($parsed['meta'], $parsed['body'], $bodyHtml);
+        return $this->loadDocument($pageFile, $slug);
     }
 
     /**
@@ -67,7 +57,8 @@ class ContentRepository
     public function loadProject(string $slug): ?MarkdownDocument
     {
         $projectFile = $this->contentPath . '/projects/' . $slug . '.md';
-        return $this->loadDocument($projectFile);
+
+        return $this->loadDocument($projectFile, $slug);
     }
 
     /**
@@ -75,20 +66,7 @@ class ContentRepository
      */
     public function loadAllProjects(): array
     {
-        $directory = $this->contentPath . '/projects';
-        if (!is_dir($directory)) {
-            return [];
-        }
-
-        $projects = [];
-        foreach (glob($directory . '/*.md') ?: [] as $file) {
-            $document = $this->loadDocument($file);
-            if ($document !== null) {
-                $projects[] = $document;
-            }
-        }
-
-        return $projects;
+        return $this->loadProjects();
     }
 
     /**
@@ -96,20 +74,7 @@ class ContentRepository
      */
     public function loadTimeline(): array
     {
-        $directory = $this->contentPath . '/timeline';
-        if (!is_dir($directory)) {
-            return [];
-        }
-
-        $entries = [];
-        foreach (glob($directory . '/*.md') ?: [] as $file) {
-            $document = $this->loadDocument($file);
-            if ($document !== null) {
-                $entries[] = $document;
-            }
-        }
-
-        return $entries;
+        return $this->loadTimelineEntries();
     }
 
     /**
@@ -117,31 +82,84 @@ class ContentRepository
      */
     public function loadPosts(): array
     {
-        $directory = $this->contentPath . '/posts';
-        if (!is_dir($directory)) {
-            return [];
-        }
+        $posts = $this->loadMarkdownDocumentsFromDirectory('posts');
 
-        $posts = [];
-        foreach (glob($directory . '/*.md') ?: [] as $file) {
-            $document = $this->loadDocument($file);
-            if ($document !== null) {
-                $posts[] = $document;
-            }
-        }
+        usort($posts, function (MarkdownDocument $a, MarkdownDocument $b): int {
+            $dateA = strtotime((string)($a->getMeta()['date'] ?? '')) ?: 0;
+            $dateB = strtotime((string)($b->getMeta()['date'] ?? '')) ?: 0;
+
+            return $dateB <=> $dateA;
+        });
 
         return $posts;
     }
 
     /**
-     * Load a list of projects. Returns an empty list placeholder for now.
+     * Load all projects sorted by sort value and date.
      */
     public function loadProjects(): array
     {
-        return [
-            'title' => 'Projekte',
-            'projects' => [],
-        ];
+        $projects = $this->loadMarkdownDocumentsFromDirectory('projects');
+
+        usort($projects, function (MarkdownDocument $a, MarkdownDocument $b): int {
+            $sortA = (int)($a->getMeta()['sort'] ?? 0);
+            $sortB = (int)($b->getMeta()['sort'] ?? 0);
+            if ($sortA !== $sortB) {
+                return $sortB <=> $sortA;
+            }
+
+            $dateA = strtotime((string)($a->getMeta()['date'] ?? '')) ?: 0;
+            $dateB = strtotime((string)($b->getMeta()['date'] ?? '')) ?: 0;
+
+            return $dateB <=> $dateA;
+        });
+
+        return $projects;
+    }
+
+    /**
+     * Load timeline entries sorted by sort and from date.
+     */
+    public function loadTimelineEntries(): array
+    {
+        $entries = $this->loadMarkdownDocumentsFromDirectory('timeline');
+
+        usort($entries, function (MarkdownDocument $a, MarkdownDocument $b): int {
+            $sortA = (int)($a->getMeta()['sort'] ?? 0);
+            $sortB = (int)($b->getMeta()['sort'] ?? 0);
+            if ($sortA !== $sortB) {
+                return $sortB <=> $sortA;
+            }
+
+            $fromA = strtotime((string)($a->getMeta()['from'] ?? '')) ?: 0;
+            $fromB = strtotime((string)($b->getMeta()['from'] ?? '')) ?: 0;
+
+            return $fromB <=> $fromA;
+        });
+
+        return $entries;
+    }
+
+    /**
+     * Load the skills grouped by category.
+     */
+    public function loadSkills(): array
+    {
+        $file = $this->contentPath . '/skills.yml';
+        $defaults = ['tech' => [], 'ux' => [], 'tools' => [], 'soft' => []];
+
+        if (!is_file($file)) {
+            return $defaults;
+        }
+
+        $raw = file_get_contents($file);
+        if ($raw === false) {
+            throw new RuntimeException(sprintf('Konnte die Datei %s nicht lesen.', $file));
+        }
+
+        $parsed = $this->parseSkillsYaml($raw);
+
+        return array_merge($defaults, array_intersect_key($parsed, $defaults));
     }
 
     /**
@@ -161,7 +179,7 @@ class ContentRepository
         ];
     }
 
-    private function loadDocument(string $file): ?MarkdownDocument
+    private function loadDocument(string $file, ?string $slug = null): ?MarkdownDocument
     {
         if (!is_file($file)) {
             return null;
@@ -173,8 +191,64 @@ class ContentRepository
         }
 
         $parsed = $this->frontmatterParser->parse($content);
+        if ($slug !== null && !isset($parsed['meta']['slug'])) {
+            $parsed['meta']['slug'] = $slug;
+        }
+
         $bodyHtml = $this->markdownRenderer->toHtml($parsed['body']);
 
         return new MarkdownDocument($parsed['meta'], $parsed['body'], $bodyHtml);
+    }
+
+    private function loadMarkdownDocumentsFromDirectory(string $relativePath): array
+    {
+        $directory = $this->contentPath . '/' . trim($relativePath, '/');
+        if (!is_dir($directory)) {
+            return [];
+        }
+
+        $documents = [];
+        foreach (glob($directory . '/*.md') ?: [] as $file) {
+            $slug = basename($file, '.md');
+            $document = $this->loadDocument($file, $slug);
+            if ($document !== null) {
+                $documents[] = $document;
+            }
+        }
+
+        return $documents;
+    }
+
+    private function parseSkillsYaml(string $raw): array
+    {
+        if (class_exists(Yaml::class)) {
+            try {
+                $parsed = Yaml::parse($raw);
+                return is_array($parsed) ? $parsed : [];
+            } catch (\Throwable) {
+                return [];
+            }
+        }
+
+        $result = [];
+        $current = null;
+        foreach (preg_split('/\r?\n/', $raw) ?: [] as $line) {
+            $trimmed = trim($line);
+            if ($trimmed === '' || str_starts_with($trimmed, '#')) {
+                continue;
+            }
+
+            if (str_ends_with($trimmed, ':')) {
+                $current = rtrim($trimmed, ':');
+                $result[$current] = $result[$current] ?? [];
+                continue;
+            }
+
+            if ($current !== null && str_starts_with($trimmed, '- ')) {
+                $result[$current][] = ltrim(substr($trimmed, 1));
+            }
+        }
+
+        return $result;
     }
 }
