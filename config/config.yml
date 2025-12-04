@@ -6,6 +6,9 @@ show_posts: false
 show_timeline: true
 show_projects: true
 
+cache:
+  enabled: false
+
 navigation:
   - slug: "home"
     label: "Start"
