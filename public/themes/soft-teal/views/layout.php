@@ -44,14 +44,13 @@ $initialMode = 'dark';
         </header>
 
         <?= $content ?>
-
         <footer>
             <div>© <span id="year"></span> Hanjo Winter · Profil-Landing (Soft Teal)</div>
             <div>
                 Sections:
-                <a href="/projects">Projekte</a> ·
-                <a href="/timeline">Werdegang</a> ·
-                <a href="/skills">Skills</a>
+                <a href="/#projects">Projekte</a> ·
+                <a href="/#timeline">Werdegang</a> ·
+                <a href="/#skills">Skills</a>
             </div>
         </footer>
     </div>

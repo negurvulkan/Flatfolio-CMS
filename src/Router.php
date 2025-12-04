@@ -85,16 +85,47 @@ class Router
 
     private function resolveHome(): RouteResult
     {
-        return $this->resolvePage('home', 'home');
+        return $this->buildHomeRoute(null);
     }
 
+    private function buildHomeRoute(?string $section = null): RouteResult
+    {
+        // Home-Page laden
+        $page = $this->contentRepository->loadPage('home');
+        if ($page === null) {
+            // falls jemand die home.md löscht
+            return $this->notFound('/');
+        }
+    
+        $template = $this->normalizeTemplateName($page->getTemplate(), 'home');
+    
+        // zusätzliche Inhalte für den Onepager
+        $projects = $this->contentRepository->loadProjects();
+        $entries  = $this->contentRepository->loadTimelineEntries();
+        $skills   = $this->contentRepository->loadSkills();
+    
+        $data = [
+            'page'     => $page,
+            'projects' => $projects,
+            'entries'  => $entries,
+            'skills'   => $skills,
+        ];
+    
+        if ($section !== null) {
+            $data['activeSection'] = $section;
+        }
+    
+        return new RouteResult($template, $data);
+    }
+        
     private function resolveProjects(array $segments, string $path): RouteResult
     {
+        // /projects  -> Onepager-Startseite, Fokus auf Projekte
         if (count($segments) === 1) {
-            $projects = $this->contentRepository->loadProjects();
-            return new RouteResult('projects', ['projects' => $projects]);
+            return $this->buildHomeRoute('projects');
         }
-
+    
+        // /projects/<slug> -> Detailseite wie bisher
         if (count($segments) === 2) {
             $project = $this->contentRepository->loadProject($segments[1]);
             if ($project !== null) {
@@ -102,29 +133,31 @@ class Router
                 return new RouteResult($template, ['project' => $project]);
             }
         }
-
+    
         return $this->notFound($path);
     }
+    
 
     private function resolveTimeline(array $segments, string $path): RouteResult
     {
         if (count($segments) === 1) {
-            $entries = $this->contentRepository->loadTimelineEntries();
-            return new RouteResult('timeline', ['entries' => $entries]);
+            // Onepager: gleiche Seite wie Home, aber mit Marker
+            return $this->buildHomeRoute('timeline');
         }
-
+    
         return $this->notFound($path);
     }
+    
 
     private function resolveSkills(array $segments, string $path): RouteResult
     {
         if (count($segments) === 1) {
-            $skills = $this->contentRepository->loadSkills();
-            return new RouteResult('skills', ['skills' => $skills]);
+            return $this->buildHomeRoute('skills');
         }
-
+    
         return $this->notFound($path);
     }
+    
 
     private function resolvePosts(array $segments, string $path): RouteResult
     {

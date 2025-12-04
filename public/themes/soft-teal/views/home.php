@@ -4,6 +4,7 @@
  * @var \Flatfolio\Content\MarkdownDocument[] $projects ?? []
  * @var \Flatfolio\Content\MarkdownDocument[] $entries ?? []
  * @var array $skills ?? []
+ * @var string|null $activeSection ?? null */
  */
 
 $meta    = $page?->getMeta() ?? [];
@@ -18,6 +19,11 @@ $chips = $meta['chips'] ?? [
     'Figma · Prototyping',
     'KI-gestützte Workflows',
 ];
+
+$sectionClass = function(string $id) use ($activeSection): string {
+    return $activeSection === $id ? ' is-active-section' : '';
+};
+
 ?>
 <div class="layout">
     <!-- HERO / LEFT -->
