@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Flatfolio\Cache\FileCache;
 use Flatfolio\Content\FrontmatterParser;
 use Flatfolio\Content\MarkdownRenderer;
 use FlatfolioCMS\ContentRepository;
@@ -11,6 +12,7 @@ use FlatfolioCMS\TemplateEngine;
 $basePath = dirname(__DIR__);
 
 $prefixes = [
+    'Flatfolio\\Cache\\' => $basePath . '/src/Cache/',
     'FlatfolioCMS\\' => $basePath . '/src/',
     'Flatfolio\\Content\\' => $basePath . '/src/Content/',
 ];
@@ -48,13 +50,33 @@ function loadConfigTheme(string $configPath): ?string
     return null;
 }
 
+function loadCacheEnabled(string $configPath): bool
+{
+    if (!is_file($configPath)) {
+        return false;
+    }
+
+    $raw = file_get_contents($configPath);
+    if ($raw === false) {
+        return false;
+    }
+
+    if (preg_match('/cache:\s*\n\s*enabled:\s*(true|false)/mi', $raw, $matches)) {
+        return strtolower($matches[1]) === 'true';
+    }
+
+    return false;
+}
+
 $configTheme = loadConfigTheme($basePath . '/config/config.yml');
+$cacheEnabled = loadCacheEnabled($basePath . '/config/config.yml');
 
 $frontmatterParser = new FrontmatterParser();
 $markdownRenderer = new MarkdownRenderer();
 
 $router = new Router(new ContentRepository($basePath . '/content', $frontmatterParser, $markdownRenderer));
-$templateEngine = new TemplateEngine($basePath . '/templates', $configTheme, $basePath . '/themes');
+$cache = $cacheEnabled ? new FileCache($basePath . '/cache/views') : null;
+$templateEngine = new TemplateEngine($basePath . '/templates', $configTheme, $basePath . '/themes', $cache, $cacheEnabled);
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $route = $router->match($path);

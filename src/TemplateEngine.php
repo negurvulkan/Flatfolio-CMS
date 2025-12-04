@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace FlatfolioCMS;
 
+use Flatfolio\Cache\CacheInterface;
 use RuntimeException;
 
 class TemplateEngine
@@ -16,16 +17,24 @@ class TemplateEngine
 
     private ?CacheInterface $cache;
 
+    private bool $cacheEnabled;
+
+    private int $viewCacheTtl;
+
     public function __construct(
         string $baseTemplatePath,
         ?string $themeName = null,
         ?string $themeBasePath = null,
-        ?CacheInterface $cache = null
+        ?CacheInterface $cache = null,
+        bool $cacheEnabled = false,
+        int $viewCacheTtl = 300
     ) {
         $this->baseTemplatePath = rtrim($baseTemplatePath, '/');
         $this->themeName = $themeName !== '' ? $themeName : null;
         $this->themeBasePath = $themeBasePath !== null ? rtrim($themeBasePath, '/') : null;
         $this->cache = $cache;
+        $this->cacheEnabled = $cacheEnabled;
+        $this->viewCacheTtl = $viewCacheTtl;
     }
 
     /**
@@ -33,6 +42,17 @@ class TemplateEngine
      */
     public function render(string $view, array $data = [], ?string $layout = 'layout'): string
     {
+        $cacheable = $this->isCacheableRequest() && $this->cacheEnabled && $this->cache !== null;
+        $cacheKey = null;
+
+        if ($cacheable) {
+            $cacheKey = $this->buildViewCacheKey($view, $data);
+            $cached = $this->cache->get($cacheKey);
+            if (is_string($cached)) {
+                return $cached;
+            }
+        }
+
         $templateFile = $this->resolveTemplatePath($view);
         if ($templateFile === null) {
             throw new RuntimeException(sprintf('Template "%s" not found.', $view));
@@ -41,16 +61,22 @@ class TemplateEngine
         $content = $this->includeWithVariables($templateFile, $data);
 
         if ($layout === null) {
-            return $content;
+            $rendered = $content;
+        } else {
+            $layoutName = $layout === '' ? 'layout' : $layout;
+            $layoutFile = $this->resolveTemplatePath($layoutName);
+            if ($layoutFile === null) {
+                throw new RuntimeException(sprintf('Layout "%s" not found.', $layoutName));
+            }
+
+            $rendered = $this->includeWithVariables($layoutFile, array_merge($data, ['content' => $content]));
         }
 
-        $layoutName = $layout === '' ? 'layout' : $layout;
-        $layoutFile = $this->resolveTemplatePath($layoutName);
-        if ($layoutFile === null) {
-            throw new RuntimeException(sprintf('Layout "%s" not found.', $layoutName));
+        if ($cacheable && $cacheKey !== null) {
+            $this->cache->set($cacheKey, $rendered, $this->viewCacheTtl);
         }
 
-        return $this->includeWithVariables($layoutFile, array_merge($data, ['content' => $content]));
+        return $rendered;
     }
 
     /**
@@ -91,7 +117,7 @@ class TemplateEngine
         foreach ($paths as $path) {
             if (is_file($path)) {
                 if ($this->cache !== null) {
-                    $this->cache->set($cacheKey, $path);
+                    $this->cache->set($cacheKey, $path, $this->viewCacheTtl);
                 }
 
                 return $path;
@@ -109,5 +135,15 @@ class TemplateEngine
         include $file;
 
         return (string) ob_get_clean();
+    }
+
+    private function buildViewCacheKey(string $view, array $data): string
+    {
+        return 'view_' . md5($view . '|' . serialize(array_keys($data)));
+    }
+
+    private function isCacheableRequest(): bool
+    {
+        return ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET';
     }
 }
