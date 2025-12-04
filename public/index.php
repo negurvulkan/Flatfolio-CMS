@@ -76,7 +76,7 @@ $markdownRenderer = new MarkdownRenderer();
 
 $router = new Router(new ContentRepository($basePath . '/content', $frontmatterParser, $markdownRenderer));
 $cache = $cacheEnabled ? new FileCache($basePath . '/cache/views') : null;
-$templateEngine = new TemplateEngine($basePath . '/templates', $configTheme, $basePath . '/public/themes', $cache, $cacheEnabled);
+$templateEngine = new TemplateEngine($basePath . '/templates', $configTheme, $basePath . '/themes', $cache, $cacheEnabled);
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $route = $router->match($path);
