@@ -1,0 +1,17 @@
+site_name: "Flatfolio CMS – Hanjo Winter"
+base_url: "http://localhost:8000"
+theme: "soft-teal"
+language: "de"
+show_posts: false
+show_timeline: true
+show_projects: true
+
+navigation:
+  - slug: "home"
+    label: "Start"
+  - slug: "about"
+    label: "Über mich"
+  - slug: "projects"
+    label: "Projekte"
+  - slug: "timeline"
+    label: "Werdegang"
