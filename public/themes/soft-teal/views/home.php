@@ -112,7 +112,7 @@ $sectionClass = function(string $id) use ($activeSection): string {
     <?php endif; ?>
 </div>
 <div class="sections-grid">
-<?php if (!empty($skills)): ?>
-    <?php include __DIR__ . '/skills.php'; ?>
-<?php endif; ?>
+    <?php if (!empty($skills)): ?>
+        <?php include __DIR__ . '/skills.php'; ?>
+    <?php endif; ?>
 </div>
