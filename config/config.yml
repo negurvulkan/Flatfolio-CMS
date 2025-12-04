@@ -1,4 +1,5 @@
-site_name: "Flatfolio CMS – Hanjo Winter"
+site_name: "Hanjo Winter – Web · UX · Storytelling"
+subtitle: "Profil & Portfolio – Web · UX · Storytelling"
 base_url: "http://localhost:8000"
 theme: "soft-teal"
 language: "de"
