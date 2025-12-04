@@ -95,6 +95,16 @@ class ContentRepository
     }
 
     /**
+     * Load a single blog post by slug.
+     */
+    public function loadPost(string $slug): ?MarkdownDocument
+    {
+        $postFile = $this->contentPath . '/posts/' . $slug . '.md';
+
+        return $this->loadDocument($postFile, $slug);
+    }
+
+    /**
      * Load all projects sorted by sort value and date.
      */
     public function loadProjects(): array
