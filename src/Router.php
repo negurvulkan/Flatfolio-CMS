@@ -63,6 +63,26 @@ class Router
         return $trimmed;
     }
 
+    private function normalizeTemplateName(?string $template, string $default): string
+    {
+        if ($template === null || $template === '') {
+            return $default;
+        }
+    
+        // Whitespace abschneiden
+        $template = trim($template);
+    
+        // Führende/trailing Anführungszeichen entfernen
+        $template = trim($template, "\"'");
+    
+        // Falls danach nichts übrig bleibt, auf Default zurück
+        if ($template === '') {
+            return $default;
+        }
+    
+        return $template;
+    }
+
     private function resolveHome(): RouteResult
     {
         return $this->resolvePage('home', 'home');
@@ -78,7 +98,7 @@ class Router
         if (count($segments) === 2) {
             $project = $this->contentRepository->loadProject($segments[1]);
             if ($project !== null) {
-                $template = $project->getTemplate() ?? 'project-single';
+                $template = $this->normalizeTemplateName($project->getTemplate(), 'project-single');
                 return new RouteResult($template, ['project' => $project]);
             }
         }
@@ -116,7 +136,7 @@ class Router
         if (count($segments) === 2) {
             $post = $this->contentRepository->loadPost($segments[1]);
             if ($post !== null) {
-                $template = $post->getTemplate() ?? 'post';
+                $template = $this->normalizeTemplateName($post->getTemplate(), 'post');
                 return new RouteResult($template, ['post' => $post]);
             }
         }
@@ -131,7 +151,7 @@ class Router
             return $this->notFound($slug === 'home' ? '/' : '/' . $slug);
         }
 
-        $template = $page->getTemplate() ?? $defaultTemplate;
+        $template = $this->normalizeTemplateName($page->getTemplate(), $defaultTemplate);
 
         return new RouteResult($template, ['page' => $page]);
     }
