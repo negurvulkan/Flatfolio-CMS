@@ -65,41 +65,7 @@ $sectionClass = function(string $id) use ($activeSection): string {
         </div>
     </section>
 
-    <!-- RIGHT – DESIGN SUMMARY -->
-    <aside class="card">
-        <div class="card-inner">
-            <div class="section-title">DESIGN-DETAILS</div>
-
-            <div class="detail-row">
-                <strong>Farbstimmung · Soft Teal</strong>
-                <p class="typo-demo-body" style="margin-top:4px;">
-                    Ruhiges, tiefes Blaugrün mit leichten Glows – seriös, aber nicht langweilig.
-                </p>
-                <div class="palette-preview">
-                    <div class="palette-swatch bg-main"></div>
-                    <div class="palette-swatch bg-soft"></div>
-                    <div class="palette-swatch bg-accent"></div>
-                    <div class="palette-swatch bg-alt"></div>
-                </div>
-            </div>
-
-            <div class="detail-row">
-                <strong>Typografie</strong>
-                <p class="typo-demo-heading">Space Grotesk – The quick brown fox</p>
-                <p class="typo-demo-body">
-                    IBM Plex Sans – Der schnelle braune Fuchs springt über den faulen Hund.
-                </p>
-            </div>
-
-            <div class="detail-row">
-                <strong>Aktive Theme-Variablen</strong>
-                <div class="code-chip">
-                    :root { --bg: #02070c; --bg-elevated: #07131f; --accent: #2bb3b0;
-                    --font-heading: "Space Grotesk"; --font-body: "IBM Plex Sans"; }
-                </div>
-            </div>
-        </div>
-    </aside>
+ 
 </div>
 
 <div class="sections-grid">
